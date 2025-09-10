@@ -63,11 +63,13 @@ vercel
 
 # 設定環境變數
 vercel env add GEMINI_API_KEY
+vercel env add ACCOUNT
+vercel env add PASSWORD
 ```
 
 3. **環境變數設定**
-   - 在 Vercel Dashboard 中設定 `GEMINI_API_KEY`
-   - 或使用 CLI: `vercel env add GEMINI_API_KEY`
+   - 在 Vercel Dashboard 中設定 `GEMINI_API_KEY`, `ACCOUNT`, `PASSWORD`
+   - 或使用 CLI: `vercel env add GEMINI_API_KEY`, ...
 
 ## 📖 使用方法
 
