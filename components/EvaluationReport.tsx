@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { APIEvaluation } from '../types/evaluation'
+import { downloadMarkdownReport } from '../utils/markdownReportGenerator'
 
 interface EvaluationReportProps {
   evaluation: APIEvaluation
@@ -54,12 +55,23 @@ const EvaluationReport: React.FC<EvaluationReportProps> = ({ evaluation }) => {
     <div className="bg-white rounded-lg shadow-md p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">評估報告</h2>
-        <button
-          onClick={() => window.print()}
-          className="text-sm text-blue-600 hover:text-blue-800"
-        >
-          列印報告
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => downloadMarkdownReport(evaluation)}
+            className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            匯出 Markdown
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            列印報告
+          </button>
+        </div>
       </div>
       
       {/* Overall Score */}

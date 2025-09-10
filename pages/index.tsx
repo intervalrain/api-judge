@@ -342,20 +342,20 @@ export default function Home() {
             
             {/* Report Section */}
             <div>
-              {/* Evaluation Placeholder - Shows immediately when evaluation starts */}
-              {partialEvaluation && (
+              {/* Final Evaluation Report - Shows when evaluation is complete */}
+              {evaluation && !loading && (
+                <div className="animate-fadeIn">
+                  <EvaluationReport evaluation={evaluation} />
+                </div>
+              )}
+              
+              {/* Evaluation Placeholder - Shows during streaming, but not when final evaluation exists */}
+              {!evaluation && partialEvaluation && (
                 <div className="animate-fadeIn">
                   <EvaluationPlaceholder 
                     evaluation={partialEvaluation} 
                     streamingText={streamingText}
                   />
-                </div>
-              )}
-              
-              {/* Final Evaluation Report */}
-              {evaluation && !loading && (
-                <div className="animate-fadeIn">
-                  <EvaluationReport evaluation={evaluation} />
                 </div>
               )}
               
