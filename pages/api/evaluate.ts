@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import type { NextApiRequest, NextApiResponse } from "next"
 import { readFileSync } from "fs"
 import { join } from "path"
+import { validateAuthToken } from "../../utils/auth"
 
 // 讀取 context.md 檔案
 const contextContent = readFileSync(
@@ -80,13 +81,15 @@ function cleanEvaluation(evaluation: APIEvaluation): APIEvaluation {
   cleaned.best_practices_followed = (evaluation.best_practices_followed || []).map(item => cleanJsonText(item)).slice(0, 3)
   
   // Clean categories
-  Object.keys(cleaned.categories || {}).forEach(key => {
-    const category = cleaned.categories[key]
-    if (category) {
-      category.issues = (category.issues || []).map(item => cleanJsonText(item)).slice(0, 2)
-      category.suggestions = (category.suggestions || []).map(item => cleanJsonText(item)).slice(0, 2)
-    }
-  })
+  if (cleaned.categories) {
+    Object.keys(cleaned.categories).forEach(key => {
+      const category = cleaned.categories[key as keyof typeof cleaned.categories]
+      if (category) {
+        category.issues = (category.issues || []).map(item => cleanJsonText(item)).slice(0, 2)
+        category.suggestions = (category.suggestions || []).map(item => cleanJsonText(item)).slice(0, 2)
+      }
+    })
+  }
   
   return cleaned
 }
@@ -143,15 +146,24 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" })
   }
 
+  // Check authentication
+  const authHeader = req.headers.authorization
+  const cookieToken = req.headers.cookie?.split(';').find(c => c.trim().startsWith('auth-token='))?.split('=')[1]
+  const token = authHeader?.replace('Bearer ', '') || cookieToken
+
+  if (!token || !validateAuthToken(token)) {
+    return res.status(401).json({ error: "未經授權，請先登入" })
+  }
+
   // Simple rate limiting (commented out for development)
   const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown"
   const now = Date.now()
   const lastRequest = rateLimitMap.get(clientIp as string) || 0
   
   // Uncomment for production
-  // if (now - lastRequest < 60000) {
-  //   return res.status(429).json({ error: "每分鐘只能提交一個 API 規格進行評估" })
-  // }
+  if (now - lastRequest < 60000) {
+    return res.status(429).json({ error: "每分鐘只能提交一個 API 規格進行評估" })
+  }
   
   rateLimitMap.set(clientIp as string, now)
 
@@ -420,8 +432,9 @@ RESPOND WITH ONLY THE VALID JSON OBJECT. USE SHORT SIMPLE TEXT ONLY. NO QUOTES I
           console.log("Attempting fallback partial data extraction...")
           
           // Fallback: Try to extract any usable data from the response
-          evaluation = createFallbackEvaluation(fullResponse)
-          if (evaluation) {
+          const fallbackEvaluation = createFallbackEvaluation(fullResponse)
+          if (fallbackEvaluation) {
+            evaluation = fallbackEvaluation
             console.log("Created fallback evaluation from partial data")
           } else {
             res.write(`data: ${JSON.stringify({ 
@@ -435,8 +448,10 @@ RESPOND WITH ONLY THE VALID JSON OBJECT. USE SHORT SIMPLE TEXT ONLY. NO QUOTES I
       } else {
         // For non-recognized errors, try fallback extraction
         console.log("Unrecognized parsing error, attempting fallback...")
-        evaluation = createFallbackEvaluation(fullResponse)
-        if (!evaluation) {
+        const fallbackEvaluation = createFallbackEvaluation(fullResponse)
+        if (fallbackEvaluation) {
+          evaluation = fallbackEvaluation
+        } else {
           res.write(`data: ${JSON.stringify({ 
             type: 'error', 
             message: `JSON 解析失敗: ${parseError instanceof Error ? parseError.message : '未知錯誤'}` 

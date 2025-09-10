@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import SwaggerInput from '../components/SwaggerInput'
 import EvaluationReport from '../components/EvaluationReport'
 import EvaluationPlaceholder from '../components/EvaluationPlaceholder'
 import { APIEvaluation } from '../types/evaluation'
+import { isAuthenticated, clearAuthSession, getAuthSession } from '../utils/auth'
 
 export default function Home() {
   const [evaluation, setEvaluation] = useState<APIEvaluation | null>(null)
@@ -12,6 +14,17 @@ export default function Home() {
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null)
   const [streamingText, setStreamingText] = useState<string>('')
   const [partialEvaluation, setPartialEvaluation] = useState<any>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check authentication on page load
+    if (!isAuthenticated()) {
+      router.push('/login')
+    } else {
+      setAuthChecked(true)
+    }
+  }, [router])
 
   const handleEvaluate = async (swaggerContent: string) => {
     setLoading(true)
@@ -26,10 +39,12 @@ export default function Home() {
       console.log('Swagger content length:', swaggerContent.length)
       console.log('Swagger content preview:', swaggerContent.substring(0, 200))
       
+      const token = getAuthSession()
       const response = await fetch('/api/evaluate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ swagger: swaggerContent }),
       })
@@ -40,6 +55,14 @@ export default function Home() {
       if (!response.ok) {
         // Handle non-streaming error response
         const errorData = await response.json()
+        
+        // If unauthorized, redirect to login
+        if (response.status === 401) {
+          clearAuthSession()
+          router.push('/login')
+          return
+        }
+        
         throw new Error(errorData.error || `評估失敗 (${response.status})`)
       }
 
@@ -227,6 +250,29 @@ export default function Home() {
     setPartialEvaluation(null)
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      clearAuthSession()
+      router.push('/login')
+    }
+  }
+
+  // Show loading while checking authentication
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚖️</div>
+          <p className="text-gray-600">載入中...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <Head>
@@ -249,15 +295,26 @@ export default function Home() {
                 <p className="text-sm text-gray-600 mt-1">
                   RESTful API Design Checker powered by Gemini AI
                 </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Advantech WiseIoT Internal Tool
+                </p>
               </div>
-              {evaluation && (
+              <div className="flex items-center space-x-3">
+                {evaluation && (
+                  <button
+                    onClick={handleReset}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    新評估
+                  </button>
+                )}
                 <button
-                  onClick={handleReset}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                  onClick={handleLogout}
+                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
                 >
-                  新評估
+                  登出
                 </button>
-              )}
+              </div>
             </div>
           </div>
         </header>

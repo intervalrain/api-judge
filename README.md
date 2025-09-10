@@ -34,6 +34,8 @@ cp .env.example .env.local
 編輯 `.env.local` 加入你的 Gemini API Key：
 ```env
 GEMINI_API_KEY=你的真實API金鑰
+ACCOUNT=登入帳號
+PASSWORD=登入密碼
 ```
 
 獲取 API Key: [Google AI Studio](https://aistudio.google.com/app/apikey)
